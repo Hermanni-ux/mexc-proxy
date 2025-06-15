@@ -1,24 +1,22 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
+  if (req.method !== 'POST') {
     return res.status(405).json({ message: "Only POST requests allowed" });
   }
 
   const crypto = await import('crypto');
+  const { symbol, side, entry } = req.body;
+
   const apiKey = process.env.MEXC_KEY;
   const apiSecret = process.env.MEXC_SECRET;
 
-  const { symbol, side, entry } = req.body;
-
-  const quantity = (50 / parseFloat(entry)).toFixed(5);
+  const endpoint = "/api/v3/order";
+  const baseURL = "https://api.mexc.com";
 
   const timestamp = Date.now();
-  const params = `symbol=${symbol}&side=${side.toUpperCase()}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
+  const queryString = `symbol=${symbol}&side=${side.toUpperCase()}&type=MARKET&quantity=${entry}&timestamp=${timestamp}`;
+  const signature = crypto.createHmac('sha256', apiSecret).update(queryString).digest('hex');
 
-  const signature = crypto.createHmac('sha256', apiSecret)
-    .update(params)
-    .digest('hex');
-
-  const url = `https://api.mexc.com/api/v3/order?${params}&signature=${signature}`;
+  const url = `${baseURL}${endpoint}?${queryString}&signature=${signature}`;
 
   try {
     const response = await fetch(url, {
@@ -28,7 +26,6 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       }
     });
-
     const data = await response.json();
     res.status(200).json({ success: true, data });
   } catch (error) {
