@@ -5,8 +5,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Only POST requests allowed' });
   }
 
-  const apiKey = process.env.MEXC_KEY;
-  const apiSecret = process.env.MEXC_SECRET;
+  const apiKey = process.env.MEXC_KEY;    // NIMI TÄSMÄÄ VERCELIIN
+  const apiSecret = process.env.MEXC_SECRET; // NIMI TÄSMÄÄ VERCELIIN
 
   const { symbol, side, entry } = req.body;
 
