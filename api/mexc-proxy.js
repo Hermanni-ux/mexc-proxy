@@ -1,4 +1,6 @@
-// api/mexc-proxy.js
+export const config = {
+  runtime: 'nodejs',
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,16 +16,15 @@ export default async function handler(req, res) {
   const API_SECRET = process.env.MEXC_SECRET_KEY;
   const BASE_URL = process.env.MEXC_BASE_URL || 'https://api.mexc.com';
 
-  // MEXC vaatii: symbol, side, type, quantity, timestamp, signature
   const timestamp = Date.now();
   const params = new URLSearchParams({
     symbol,
     side,
     type: 'LIMIT',
-    quantity: '0.01',  // esimerkki määrä
+    quantity: '0.01',
     price: entry,
     recvWindow: '5000',
-    timestamp: timestamp.toString()
+    timestamp: timestamp.toString(),
   });
 
   const signature = crypto.createHmac('sha256', API_SECRET)
@@ -32,15 +33,20 @@ export default async function handler(req, res) {
 
   params.append('signature', signature);
 
-  const response = await fetch(`${BASE_URL}/api/v3/order`, {
-    method: 'POST',
-    headers: {
-      'X-MEXC-APIKEY': API_KEY,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: params.toString()
-  });
+  try {
+    const response = await fetch(`${BASE_URL}/api/v3/order`, {
+      method: 'POST',
+      headers: {
+        'X-MEXC-APIKEY': API_KEY,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
 
-  const data = await response.json();
-  res.status(200).json(data);
+    const data = await response.json();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Proxy error:', error);
+    res.status(500).json({ error: 'Proxy failed', details: error.message });
+  }
 }
