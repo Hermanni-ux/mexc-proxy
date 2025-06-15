@@ -1,48 +1,41 @@
-export const config = {
-  runtime: 'edge',
-};
+import axios from 'axios';
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ message: 'Only POST requests allowed' }), { status: 405 });
+    return res.status(405).json({ message: 'Only POST requests allowed' });
   }
 
   const apiKey = process.env.MEXC_KEY;
   const apiSecret = process.env.MEXC_SECRET;
 
-  const { symbol, side, entry } = await req.json();
-  const qty = (50 / parseFloat(entry)).toFixed(5);
-  const timestamp = Date.now();
+  const { symbol, side, entry } = req.body;
 
-  // Luo query string
-  const params = `symbol=${symbol}&side=${side.toUpperCase()}&type=MARKET&quantity=${qty}&timestamp=${timestamp}`;
+  // TÄRKEÄ OSA -> KORJATTU
+  const qty = (50 / parseFloat(entry)).toFixed(2); // <-- Nyt VAIN 2 desimaalia
 
-  // Luo signaus (HMAC SHA256)
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(apiSecret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(params));
-  const signatureArray = Array.from(new Uint8Array(signatureBuffer));
-  const signature = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  try {
+    const response = await axios.post(
+      'https://api.mexc.com/api/v3/order',
+      {
+        symbol: symbol,
+        side: side.toUpperCase(),
+        type: 'MARKET',
+        quantity: qty,
+      },
+      {
+        headers: {
+          'X-MEXC-APIKEY': apiKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  // Lähetä pyyntö
-  const response = await fetch(`https://api.mexc.com/api/v3/order?${params}&signature=${signature}`, {
-    method: 'POST',
-    headers: {
-      'X-MEXC-APIKEY': apiKey,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  const data = await response.json();
-
-  return new Response(JSON.stringify(data), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
+    res.status(200).json({ success: true, data: response.data });
+  } catch (error) {
+    console.error(error.response ? error.response.data : error.message);
+    res.status(500).json({
+      success: false,
+      error: error.response ? error.response.data : error.message,
+    });
+  }
 }
