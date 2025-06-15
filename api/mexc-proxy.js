@@ -2,42 +2,26 @@ import crypto from 'crypto';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Only POST requests allowed' });
+    return res.status(405).json({ message: "Only POST requests allowed" });
   }
 
   const apiKey = process.env.MEXC_KEY;
   const apiSecret = process.env.MEXC_SECRET;
+  const { symbol, side, entry } = req.body;
 
-  const { symbol, side, entry, testMode } = req.body;
+  const qty = (50 / parseFloat(entry)).toFixed(5); // Pieni määrä testiin
+  const timestamp = Date.now();
 
-  // 1) Laske quantity — esimerkissä USDT määrä jaetaan hinnalla
-  const qty = (50 / parseFloat(entry)).toFixed(5);
-
-  // 2) Valitse endpoint: test vai oikea
-  const url = testMode
-    ? 'https://api.mexc.com/api/v3/order/test'
-    : 'https://api.mexc.com/api/v3/order';
-
-  // 3) Luo parametrit
-  const params = {
-    symbol: symbol,
-    side: side.toUpperCase(),
-    type: 'MARKET',
-    quantity: qty,
-    timestamp: Date.now()
-  };
-
-  // 4) Luo signature
-  const queryString = new URLSearchParams(params).toString();
+  const queryString = `symbol=${symbol}&side=${side}&type=MARKET&quantity=${qty}&timestamp=${timestamp}`;
   const signature = crypto.createHmac('sha256', apiSecret).update(queryString).digest('hex');
-  const finalUrl = `${url}?${queryString}&signature=${signature}`;
+
+  const url = `https://api.mexc.com/api/v3/order?${queryString}&signature=${signature}`;
 
   try {
-    const response = await fetch(finalUrl, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'X-MEXC-APIKEY': apiKey,
-        'Content-Type': 'application/json'
       }
     });
 
