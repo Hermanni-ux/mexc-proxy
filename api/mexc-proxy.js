@@ -10,27 +10,23 @@ export default async function handler(req, res) {
 
   const { symbol, side, entry } = req.body;
 
-  const quantity = parseFloat(entry); // määrä kolikoissa
+  const quantity = parseFloat(entry);
   const timestamp = Date.now();
 
-  // Luo signaatturi
-  const params = `symbol=${symbol}&side=${side}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
-  const signature = crypto.createHmac('sha256', apiSecret)
-    .update(params)
-    .digest('hex');
+  const params = `symbol=${symbol}&side=${side.toUpperCase()}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
+  const signature = crypto.createHmac('sha256', apiSecret).update(params).digest('hex');
+
+  const url = `https://api.mexc.com/api/v3/order?${params}&signature=${signature}`;
 
   try {
-    const url = `https://api.mexc.com/api/v3/order?${params}&signature=${signature}`;
-
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'X-MEXC-APIKEY': apiKey
       }
     });
-
     const data = await response.json();
-    res.status(200).json({ success: true, data: data });
+    res.status(200).json({ success: true, data });
 
   } catch (error) {
     console.error(error);
