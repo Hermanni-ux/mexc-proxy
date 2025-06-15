@@ -1,26 +1,48 @@
-export default async function handler(req, res) {
+export const config = {
+  runtime: 'edge',
+};
+
+export default async function handler(req) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Only POST requests allowed' });
+    return new Response(JSON.stringify({ message: 'Only POST requests allowed' }), { status: 405 });
   }
 
   const apiKey = process.env.MEXC_KEY;
-  const { symbol, side, entry } = req.body;
-  const qty = (50 / parseFloat(entry)).toFixed(5);
+  const apiSecret = process.env.MEXC_SECRET;
 
-  const response = await fetch('https://api.mexc.com/api/v3/order', {
+  const { symbol, side, entry } = await req.json();
+  const qty = (50 / parseFloat(entry)).toFixed(5);
+  const timestamp = Date.now();
+
+  // Luo query string
+  const params = `symbol=${symbol}&side=${side.toUpperCase()}&type=MARKET&quantity=${qty}&timestamp=${timestamp}`;
+
+  // Luo signaus (HMAC SHA256)
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(apiSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(params));
+  const signatureArray = Array.from(new Uint8Array(signatureBuffer));
+  const signature = signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Lähetä pyyntö
+  const response = await fetch(`https://api.mexc.com/api/v3/order?${params}&signature=${signature}`, {
     method: 'POST',
     headers: {
       'X-MEXC-APIKEY': apiKey,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      symbol: symbol,
-      side: side.toUpperCase(),
-      type: 'MARKET',
-      quantity: qty
-    })
   });
 
   const data = await response.json();
-  res.status(200).json(data);
+
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
