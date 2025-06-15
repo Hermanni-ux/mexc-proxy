@@ -1,27 +1,32 @@
+import crypto from 'crypto';
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ message: "Only POST allowed" });
+    return res.status(405).json({ message: "Only POST requests allowed" });
   }
 
   const apiKey = process.env.MEXC_KEY;
   const apiSecret = process.env.MEXC_SECRET;
+
   const { symbol, side, entry } = req.body;
 
-  const qty = parseFloat(entry); // Tämä on määrä, ei hinta!
+  const quantity = parseFloat(entry); // määrä kolikoissa
+  const timestamp = Date.now();
+
+  // Luo signaatturi
+  const params = `symbol=${symbol}&side=${side}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
+  const signature = crypto.createHmac('sha256', apiSecret)
+    .update(params)
+    .digest('hex');
 
   try {
-    const response = await fetch('https://api.mexc.com/api/v3/order', {
+    const url = `https://api.mexc.com/api/v3/order?${params}&signature=${signature}`;
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'X-MEXC-APIKEY': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        symbol: symbol,
-        side: side.toUpperCase(),
-        type: "MARKET",
-        quantity: qty
-      }),
+        'X-MEXC-APIKEY': apiKey
+      }
     });
 
     const data = await response.json();
