@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Only POST requests allowed" });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Only POST allowed' });
   }
 
   const apiKey = process.env.MEXC_KEY;
@@ -25,11 +25,12 @@ export default async function handler(req, res) {
         'X-MEXC-APIKEY': apiKey
       }
     });
-    const data = await response.json();
-    res.status(200).json({ success: true, data });
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: error.message });
+    const data = await response.json();
+    return res.status(200).json({ success: true, data });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
