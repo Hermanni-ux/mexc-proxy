@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Only POST requests allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Only POST requests allowed" });
   }
 
   const apiKey = process.env.MEXC_KEY;
@@ -10,16 +10,22 @@ export default async function handler(req, res) {
 
   const { symbol, side, entry } = req.body;
 
-  const qty = (50 / parseFloat(entry)).toFixed(5); // Esimerkki laskenta
+  // Varmista että qty on numero
+  const qty = parseFloat(entry).toFixed(5);
 
+  // 1️⃣ Luo aikaleima (timestamp)
   const timestamp = Date.now();
 
-  // Luo query string
-  const params = `symbol=${symbol}&side=${side.toUpperCase()}&type=MARKET&quantity=${qty}&timestamp=${timestamp}`;
+  // 2️⃣ Luo querystring — huom! järjestys tärkeä!
+  const params = `symbol=${symbol}&side=${side}&type=MARKET&quantity=${qty}&timestamp=${timestamp}`;
 
-  // Allekirjoita secretilla
-  const signature = crypto.createHmac('sha256', apiSecret).update(params).digest('hex');
+  // 3️⃣ Tee signature HMAC SHA256
+  const signature = crypto
+    .createHmac('sha256', apiSecret)
+    .update(params)
+    .digest('hex');
 
+  // 4️⃣ Lisää signature queryyn
   const finalParams = `${params}&signature=${signature}`;
 
   try {
@@ -27,8 +33,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'X-MEXC-APIKEY': apiKey,
-        'Content-Type': 'application/json',
-      },
+      }
     });
 
     const data = await response.json();
